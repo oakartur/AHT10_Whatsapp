@@ -1,0 +1,15 @@
+{
+    "C_Cpp.intelliSenseEngine": "default",
+    "idf.espIdfPathWin": "C:\\Users\\oakar\\esp\\v5.4\\esp-idf",
+    "idf.openOcdConfigs": [
+        "board/esp32-wrover-kit-3.3v.cfg"
+    ],
+    "idf.portWin": "COM4",
+    "idf.toolsPathWin": "C:\\Espressif",
+    "files.associations": {
+        "wifi.h": "c",
+        "i2c.h": "c",
+        "freertos.h": "c"
+    },
+    "idf.flashType": "UART"
+}

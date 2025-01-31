@@ -1,17 +1,17 @@
 #include "wifi.h"
 #include "aht10.h"
-#include "whatsapp.h"
 #include "esp_log.h"
+#include "clock.h"
 #include "nvs_flash.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
 
+
 #define I2C_PORT I2C_NUM_0
-#define PHONE_NUMBER "556781030929"
-#define API_KEY "2740083"
 #define SSID "Iwakura Carvalho"
 #define PASSWORD "internet007"
+#define HARDWARE_NAME "PINTEIRO"
 
 static const char *TAG = "main";
 static QueueHandle_t sensor_queue;
@@ -36,7 +36,7 @@ void sensor_task(void *pvParameter) {
         } else {
             ESP_LOGE(TAG, "Failed to read sensor data");
         }
-        vTaskDelay(pdMS_TO_TICKS(1800000)); // Envia dados a cada 120 segundos
+        vTaskDelay(pdMS_TO_TICKS(60000)); // Envia dados a cada 60 segundos
     }
 }
 
@@ -52,13 +52,23 @@ void wifi_task(void *pvParameter) {
             EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_BIT, pdFALSE, pdFALSE, pdMS_TO_TICKS(10000));
             if (bits & WIFI_CONNECTED_BIT) {
                 ESP_LOGI(TAG, "Connected to WiFi!");
-                snprintf(message, sizeof(message), "Temp: %.2fC, Humidity: %.2f%%", data.temperature, data.humidity);
-                send_to_whatsapp(PHONE_NUMBER, API_KEY, message);
+                mqtt_app_start(); // Start MQTT client after Wi-Fi connection
+
+                // Wait for MQTT connection
+                vTaskDelay(pdMS_TO_TICKS(2000)); // Adjust delay as needed
+
+                // Format and publish data
+                snprintf(message, sizeof(message), "%s\nTemp: %.2fC, Humidity: %.2f%%", HARDWARE_NAME, data.temperature, data.humidity);
+                mqtt_publish_data(message);
             } else {
                 ESP_LOGE(TAG, "Failed to connect to WiFi.");
             }
+            
+            ESP_LOGI(TAG, "Disconnecting from MQTT...");
+            esp_mqtt_client_stop(mqtt_client);
 
-            wifi_disconnect(); // Desconecta corretamente
+            ESP_LOGI(TAG, "Disconnecting from WiFi...");
+            wifi_disconnect();
         }
     }
 }

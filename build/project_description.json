@@ -1,7 +1,7 @@
 {
     "version":            "1.1",
     "project_name":       "AHT10_Whatsapp",
-    "project_version":    "1",
+    "project_version":    "ec84cb7-dirty",
     "project_path":       "C:/Codes/Firmware/AHT10_Whatsapp",
     "idf_path":           "C:/Users/oakar/esp/v5.4/esp-idf",
     "build_dir":          "C:/Codes/Firmware/AHT10_Whatsapp/build",
@@ -1195,7 +1195,7 @@
             "managed_reqs": [],
             "managed_priv_reqs": [],
             "file": "C:/Codes/Firmware/AHT10_Whatsapp/build/esp-idf/main/libmain.a",
-            "sources": [ "C:/Codes/Firmware/AHT10_Whatsapp/main/main.c", "C:/Codes/Firmware/AHT10_Whatsapp/main/wifi.c", "C:/Codes/Firmware/AHT10_Whatsapp/main/aht10.c", "C:/Codes/Firmware/AHT10_Whatsapp/main/whatsapp.c" ],
+            "sources": [ "C:/Codes/Firmware/AHT10_Whatsapp/main/clock.c", "C:/Codes/Firmware/AHT10_Whatsapp/main/main.c", "C:/Codes/Firmware/AHT10_Whatsapp/main/wifi.c", "C:/Codes/Firmware/AHT10_Whatsapp/main/aht10.c", "C:/Codes/Firmware/AHT10_Whatsapp/main/whatsapp.c" ],
             "include_dirs": [ "." ]
         },
         "mbedtls": {

@@ -1,9 +1,9 @@
 #include "wifi.h"
 
-/* FreeRTOS event group to signal when we are connected*/
-
+/* FreeRTOS event group to signal when we are connected */
 static const char *TAG = "wifi station";
-EventGroupHandle_t s_wifi_event_group; 
+EventGroupHandle_t s_wifi_event_group;
+esp_mqtt_client_handle_t mqtt_client;
 
 static int s_retry_num = 0;
 
@@ -61,7 +61,6 @@ void wifi_init_sta(const char *ssid, const char *password){
 
     wifi_config.sta.threshold.authmode = ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD;
     wifi_config.sta.sae_pwe_h2e = ESP_WIFI_SAE_MODE;
-    //wifi_config.sta.sae_h2e_identifier = EXAMPLE_H2E_IDENTIFIER;
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
@@ -69,16 +68,12 @@ void wifi_init_sta(const char *ssid, const char *password){
 
     ESP_LOGI(TAG, "wifi_init_sta finished.");
 
-    /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
-     * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) */
     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
             WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
             pdFALSE,
             pdFALSE,
             portMAX_DELAY);
 
-    /* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
-     * happened. */
     if (bits & WIFI_CONNECTED_BIT) {
         ESP_LOGI(TAG, "Connected to SSID: %s", ssid);
     } else if (bits & WIFI_FAIL_BIT) {
@@ -94,6 +89,7 @@ void wifi_connect() {
     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_BIT, pdFALSE, pdFALSE, pdMS_TO_TICKS(10000));
     if (bits & WIFI_CONNECTED_BIT) {
         ESP_LOGI(TAG, "Connected to WiFi!");
+        mqtt_app_start(); // Start MQTT client after Wi-Fi connection
     } else {
         ESP_LOGE(TAG, "Failed to connect to WiFi.");
     }
@@ -105,4 +101,73 @@ void wifi_disconnect() {
     esp_wifi_stop();
     esp_wifi_deinit();
     ESP_LOGI(TAG, "WiFi disconnected.");
+}
+
+void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
+    esp_mqtt_event_handle_t event = event_data;
+    switch (event->event_id) {
+        case MQTT_EVENT_CONNECTED:
+            ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
+            break;
+        case MQTT_EVENT_DISCONNECTED:
+            ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
+            break;
+        case MQTT_EVENT_PUBLISHED:
+            ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
+            break;
+        case MQTT_EVENT_ERROR:
+            ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
+            break;
+        default:
+            break;
+    }
+}
+
+void mqtt_app_start() {
+    ESP_LOGI(TAG, "Initializing MQTT client...");
+
+    esp_mqtt_client_config_t mqtt_cfg = {
+        .broker = {
+            .address = {
+                .hostname = MQTT_BROKER_IP, // Replace with your MQTT broker IP
+                .port = MQTT_PORT,          // Default MQTT port
+                .transport = MQTT_TRANSPORT_OVER_TCP, // Use TCP transport
+            },
+        },
+        .credentials = {
+            .client_id = "ESP32Client", // Optional: Set a client ID
+        },
+        .session = {
+            .keepalive = 120, // Keepalive time in seconds
+        },
+        .network = {
+            .reconnect_timeout_ms = 10000, // Reconnect after 10 seconds
+            .timeout_ms = 10000,           // Network operation timeout
+        },
+    };
+
+    mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
+    if (mqtt_client == NULL) {
+        ESP_LOGE(TAG, "Failed to initialize MQTT client");
+        return;
+    }
+
+    ESP_LOGI(TAG, "MQTT client initialized successfully");
+
+    esp_mqtt_client_register_event(mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
+    esp_mqtt_client_start(mqtt_client);
+}
+
+void mqtt_publish_data(const char *data) {
+    if (mqtt_client == NULL) {
+        ESP_LOGE(TAG, "MQTT client not initialized");
+        return;
+    }
+
+    int msg_id = esp_mqtt_client_publish(mqtt_client, MQTT_TOPIC, data, 0, 1, 0);
+    if (msg_id < 0) {
+        ESP_LOGE(TAG, "Failed to publish data to MQTT topic");
+    } else {
+        ESP_LOGI(TAG, "Published data to MQTT topic, msg_id=%d", msg_id);
+    }
 }

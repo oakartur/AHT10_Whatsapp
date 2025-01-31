@@ -12,11 +12,16 @@
 #include "nvs_flash.h"
 #include "lwip/err.h"
 #include "lwip/sys.h"
+#include "mqtt_client.h"
 
 
-#define EXAMPLE_ESP_WIFI_SSID      "Iwakura Carvalho"
-#define EXAMPLE_ESP_WIFI_PASS      "internet007"
-#define EXAMPLE_ESP_MAXIMUM_RETRY  5
+#define EXAMPLE_ESP_WIFI_SSID       "Iwakura Carvalho"
+#define EXAMPLE_ESP_WIFI_PASS       "internet007"
+#define EXAMPLE_ESP_MAXIMUM_RETRY   5
+#define MQTT_BROKER_IP              "24.144.91.245"
+#define MQTT_PORT                   1883
+#define MQTT_TOPIC                  "data/sensor"
+
 
 #if CONFIG_ESP_WPA3_SAE_PWE_HUNT_AND_PECK
 #define ESP_WIFI_SAE_MODE WPA3_SAE_PWE_HUNT_AND_PECK
@@ -50,10 +55,15 @@
 #define WIFI_FAIL_BIT      BIT1
 
 extern EventGroupHandle_t s_wifi_event_group;
+extern esp_mqtt_client_handle_t mqtt_client;
+
 void wifi_init_sta(const char *ssid, const char *password);
 void event_handler(void* arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data);
-                                
+void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data);
+void mqtt_app_start();
+void mqtt_publish_data(const char *data);
+
 void wifi_disconnect();
 void wifi_connect();
 

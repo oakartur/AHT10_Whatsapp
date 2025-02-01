@@ -7,4 +7,6 @@
 #include "esp_sntp.h"
 
 
+void obtain_time();
+void time_sync_notification_cb(struct timeval *tv);
 #endif //CLOCK_H

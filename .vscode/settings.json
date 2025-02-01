@@ -13,7 +13,8 @@
         "sys.h": "c",
         "esp_log.h": "c",
         "nvs_flash.h": "c",
-        "clock.h": "c"
+        "clock.h": "c",
+        "system_error": "c"
     },
     "idf.flashType": "UART"
 }

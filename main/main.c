@@ -6,6 +6,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
+#include "cJSON.h"
 
 
 #define I2C_PORT I2C_NUM_0
@@ -42,7 +43,7 @@ void sensor_task(void *pvParameter) {
 
 void wifi_task(void *pvParameter) {
     sensor_data_t data;
-    char message[100];
+    char message[256];
 
     while (1) {
         if (xQueueReceive(sensor_queue, &data, portMAX_DELAY)) {
@@ -53,12 +54,22 @@ void wifi_task(void *pvParameter) {
             if (bits & WIFI_CONNECTED_BIT) {
                 ESP_LOGI(TAG, "Connected to WiFi!");
                 mqtt_app_start(); // Start MQTT client after Wi-Fi connection
-
                 // Wait for MQTT connection
+                obtain_time();
                 vTaskDelay(pdMS_TO_TICKS(2000)); // Adjust delay as needed
+                
+                time_t now;
+                struct tm timeinfo;
+                time(&now);
+                localtime_r(&now, &timeinfo);
+                char timeStr[64];
+                strftime(timeStr, sizeof(timeStr), "%Y-%m-%dT%H:%M:%S", &timeinfo);
 
-                // Format and publish data
-                snprintf(message, sizeof(message), "%s\nTemp: %.2fC, Humidity: %.2f%%", HARDWARE_NAME, data.temperature, data.humidity);
+                // Format the JSON message
+                snprintf(message, sizeof(message),
+                         "{\"hardware\": \"%s\", \"timestamp\": \"%s\", \"temperature\": %.2f, \"humidity\": %.2f}",
+                         HARDWARE_NAME, timeStr, data.temperature, data.humidity);
+
                 mqtt_publish_data(message);
             } else {
                 ESP_LOGE(TAG, "Failed to connect to WiFi.");

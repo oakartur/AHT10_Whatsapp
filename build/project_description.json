@@ -1,7 +1,7 @@
 {
     "version":            "1.1",
     "project_name":       "AHT10_Whatsapp",
-    "project_version":    "35a7e6a-dirty",
+    "project_version":    "73dc43d-dirty",
     "project_path":       "C:/Codes/Firmware/AHT10_Whatsapp",
     "idf_path":           "C:/Users/oakar/esp/v5.4/esp-idf",
     "build_dir":          "C:/Codes/Firmware/AHT10_Whatsapp/build",

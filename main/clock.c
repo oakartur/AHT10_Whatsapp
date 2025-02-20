@@ -27,14 +27,14 @@ bool obtain_time() {
     if (timeinfo.tm_year >= (2024 - 1900)) {
         ESP_LOGI("NTP", "UTC Time synchronized: %s", asctime(&timeinfo));
 
-        // Set Timezone to GMT-4
+        /*// Set Timezone to GMT-4
         setenv("TZ", "EST4", 1);  // EST = Eastern Standard Time (GMT-4)
-        tzset();
+        tzset();*/
 
         // Get local time after timezone adjustment
         time(&now);
         localtime_r(&now, &timeinfo);
-        ESP_LOGI("NTP", "Local Time (GMT-4): %s", asctime(&timeinfo));
+        //ESP_LOGI("NTP", "UTC time: %s", asctime(&timeinfo));
         esp_sntp_stop();
         return true;
     } else {

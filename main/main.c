@@ -13,7 +13,7 @@
 #define PASSWORD "internet007"
 #define OWNER_NAME "CREATOR"
 #define HARDWARE_NAME "LAB"
-#define SENSOR_PERIOD 5 // in minutes
+#define SENSOR_PERIOD 1 // in minutes
 
 static const char *TAG = "main";
 
@@ -112,13 +112,13 @@ void mqtt_publish_task(void *pvParameter) {
     
     while (1) {
         // Calculate delay until the next half-hour (e.g., 08:00, 08:30, etc.).
+        int mqtt_interval_minutes = 5;  // This can be any input value.
         time(&now);
         localtime_r(&now, &timeinfo);
-        int minutes = timeinfo.tm_min;
-        int seconds = timeinfo.tm_sec;
-        int delay_seconds = (minutes < 30)
-                                ? ((30 - minutes) * 60 - seconds)
-                                : ((60 - minutes) * 60 - seconds);
+
+        int period_sec = mqtt_interval_minutes * 60;
+        int current_sec = timeinfo.tm_min * 60 + timeinfo.tm_sec;
+        int delay_seconds = period_sec - (current_sec % period_sec);
 
         ESP_LOGI(TAG, "MQTT Publisher: Waiting %d seconds until next interval...", delay_seconds);
         vTaskDelay(pdMS_TO_TICKS(delay_seconds * 1000));
@@ -141,7 +141,7 @@ void mqtt_publish_task(void *pvParameter) {
             // Convert timestamp to a formatted string.
             struct tm sensorTimeInfo;
             localtime_r(&data.timestamp, &sensorTimeInfo);
-            strftime(sensorTimeStr, sizeof(sensorTimeStr), "%Y-%m-%dT%H:%M:%S", &sensorTimeInfo);
+            strftime(sensorTimeStr, sizeof(sensorTimeStr), "%Y-%m-%d %H:%M:%S", &sensorTimeInfo);
 
             // Create a JSON object for this single reading.
             cJSON *root = cJSON_CreateObject();
@@ -171,7 +171,7 @@ void mqtt_publish_task(void *pvParameter) {
         if (count == 0) {
             ESP_LOGW(TAG, "MQTT Publisher: No sensor data available to publish.");
         }
-
+        vTaskDelay(pdMS_TO_TICKS(2000));
         // Disconnect MQTT client (and optionally WiFi) after publishing.
         ESP_LOGI(TAG, "MQTT Publisher: Disconnecting MQTT");
         esp_mqtt_client_stop(mqtt_client);

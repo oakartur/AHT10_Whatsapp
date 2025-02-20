@@ -2,7 +2,14 @@
 #include "esp_log.h"
 #include "driver/i2c.h"
 
-static const char *TAG = "AHT10"; //Tag for logging (esp_log)
+static const char *TAG = "AHT10"; 
+
+//circular buffer variables
+int buffer_head = 0;
+int buffer_tail = 0;
+static int buffer_count = 0;
+sensor_data_t *sensor_buffer = NULL;
+
 
 bool i2c_master_init() {
     i2c_config_t conf = {
@@ -44,7 +51,7 @@ bool aht10_init(i2c_port_t i2c_port){
 }
 
 // Read temperature and humidity from the AHT10 sensor
-bool aht10_read(i2c_port_t i2c_port, float *temperature, float *humidity) {
+bool aht10_read(i2c_port_t i2c_port) {
     uint8_t trigger_cmd[3] = {AHT10_TRIGGER, 0x33, 0x00}; // Trigger measurement command
     esp_err_t ret = i2c_master_write_to_device(i2c_port, AHT10_I2C_ADDRESS, trigger_cmd, sizeof(trigger_cmd), pdMS_TO_TICKS(1000));
     if (ret != ESP_OK) {
@@ -60,12 +67,59 @@ bool aht10_read(i2c_port_t i2c_port, float *temperature, float *humidity) {
         return false;
     }
 
+    sensor_data_t new_data;
+    new_data.timestamp = time(NULL);
     // Convert raw data to temperature and humidity
-    uint32_t raw_humidity = ((uint32_t)data[1] << 12) | ((uint32_t)data[2] << 4) | ((data[3] & 0xF0) >> 4);
-    uint32_t raw_temperature = ((uint32_t)(data[3] & 0x0F) << 16) | ((uint32_t)data[4] << 8) | data[5];
+    new_data.humidity = ((uint32_t)data[1] << 12 | (uint32_t)data[2] << 4 | (data[3] & 0xF0) >> 4) * 100.0 / 0x100000;
+    new_data.temperature = (((uint32_t)(data[3] & 0x0F) << 16 | (uint32_t)data[4] << 8 | data[5]) * 200.0 / 0x100000) - 50;
 
-    *humidity = (raw_humidity * 100.0) / 0x100000; // Convert to percentage
-    *temperature = (raw_temperature * 200.0 / 0x100000) - 50; // Convert to Celsius
+    ESP_LOGI(TAG, "Temperature: %.2f°C, Humidity: %.2f%%", new_data.temperature, new_data.humidity);
+
+    buffer_insert(new_data);
+
+    return true;
+}
+
+bool buffer_init(){
+    sensor_buffer = (sensor_data_t*)malloc(SENSOR_BUFFER_SIZE*sizeof(sensor_data_t));
+
+    if(!sensor_buffer){
+        ESP_LOGE(TAG, "Failed to allocate memory for sensor buffer");
+        return false;
+    }
+    buffer_count = buffer_head = buffer_tail = 0;
+    return true;
+}
+
+// Free buffer memory
+void buffer_free() {
+    free(sensor_buffer);
+    sensor_buffer = NULL;
+}
+
+// Insert data into buffer
+void buffer_insert(sensor_data_t data) {
+    if (!sensor_buffer) return;
+
+    sensor_buffer[buffer_head] = data;
+    buffer_head = (buffer_head + 1) % SENSOR_BUFFER_SIZE;
+
+    if (buffer_count < SENSOR_BUFFER_SIZE) {
+        buffer_count++;
+    } else {
+        buffer_tail = (buffer_tail + 1) % SENSOR_BUFFER_SIZE; // Overwrite oldest data
+    }
+}
+
+// Retrieve data from buffer
+bool buffer_retrieve(sensor_data_t *data) {
+    if (buffer_count == 0 || !sensor_buffer) {
+        return false; // No data available
+    }
+
+    *data = sensor_buffer[buffer_tail];
+    buffer_tail = (buffer_tail + 1) % SENSOR_BUFFER_SIZE;
+    buffer_count--;
 
     return true;
 }

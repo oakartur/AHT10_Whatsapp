@@ -4,7 +4,7 @@ void time_sync_notification_cb(struct timeval *tv) {
     ESP_LOGI("NTP", "Time synchronized!");
 }
 
-void obtain_time() {
+bool obtain_time() {
     ESP_LOGI("NTP", "Initializing SNTP...");
     esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
     esp_sntp_setservername(0, "pool.ntp.org");  // Use global NTP server
@@ -35,7 +35,11 @@ void obtain_time() {
         time(&now);
         localtime_r(&now, &timeinfo);
         ESP_LOGI("NTP", "Local Time (GMT-4): %s", asctime(&timeinfo));
+        esp_sntp_stop();
+        return true;
     } else {
         ESP_LOGE("NTP", "Failed to obtain time!");
+        esp_sntp_stop();
+        return false;
     }
 }
